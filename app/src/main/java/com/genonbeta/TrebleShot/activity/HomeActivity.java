@@ -6,16 +6,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.LocaleList;
-import android.os.Looper;
-import android.util.Log;
+import android.text.format.Formatter;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
@@ -31,29 +28,22 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.genonbeta.TrebleShot.R;
 import com.genonbeta.TrebleShot.app.Activity;
-import com.genonbeta.TrebleShot.config.AppConfig;
 import com.genonbeta.TrebleShot.config.Keyword;
 import com.genonbeta.TrebleShot.dialog.ShareAppDialog;
-import com.genonbeta.TrebleShot.dialog.TransferInfoDialog;
+import com.genonbeta.TrebleShot.dialog.WebShareDetailsDialog;
 import com.genonbeta.TrebleShot.fragment.HomeFragment;
 import com.genonbeta.TrebleShot.object.NetworkDevice;
 import com.genonbeta.TrebleShot.service.CommunicationService;
 import com.genonbeta.TrebleShot.ui.callback.PowerfulActionModeSupport;
 import com.genonbeta.TrebleShot.util.AppUtils;
-import com.genonbeta.TrebleShot.util.FileUtils;
+import com.genonbeta.TrebleShot.util.TextUtils;
 import com.genonbeta.TrebleShot.util.UpdateUtils;
-import com.genonbeta.android.framework.io.DocumentFile;
-import com.genonbeta.android.framework.util.Interrupter;
 import com.genonbeta.android.framework.widget.PowerfulActionMode;
 import com.google.android.material.navigation.NavigationView;
 
-import java.io.File;
-import java.util.Locale;
-
 public class HomeActivity
         extends Activity
-        implements NavigationView.OnNavigationItemSelectedListener, PowerfulActionModeSupport
-{
+        implements NavigationView.OnNavigationItemSelectedListener, PowerfulActionModeSupport {
     public static final int REQUEST_PERMISSION_ALL = 1;
 
     private NavigationView mNavigationView;
@@ -68,8 +58,7 @@ public class HomeActivity
     private int mChosenMenuItemId;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
@@ -87,21 +76,17 @@ public class HomeActivity
         toggle.syncState();
 
         mFilter.addAction(CommunicationService.ACTION_TRUSTZONE_STATUS);
-        mDrawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener()
-        {
+        mDrawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
-            public void onDrawerClosed(View drawerView)
-            {
+            public void onDrawerClosed(View drawerView) {
                 applyAwaitingDrawerAction();
             }
         });
 
         mNavigationView.setNavigationItemSelectedListener(this);
-        mActionMode.setOnSelectionTaskListener(new PowerfulActionMode.OnSelectionTaskListener()
-        {
+        mActionMode.setOnSelectionTaskListener(new PowerfulActionMode.OnSelectionTaskListener() {
             @Override
-            public void onSelectionTask(boolean started, PowerfulActionMode actionMode)
-            {
+            public void onSelectionTask(boolean started, PowerfulActionMode actionMode) {
                 toolbar.setVisibility(!started ? View.VISIBLE : View.GONE);
             }
         });
@@ -112,30 +97,24 @@ public class HomeActivity
         if (!AppUtils.isLatestChangeLogSeen(this)) {
             new AlertDialog.Builder(this)
                     .setMessage(R.string.mesg_versionUpdatedChangelog)
-                    .setPositiveButton(R.string.butn_yes, new DialogInterface.OnClickListener()
-                    {
+                    .setPositiveButton(R.string.butn_yes, new DialogInterface.OnClickListener() {
                         @Override
-                        public void onClick(DialogInterface dialog, int which)
-                        {
+                        public void onClick(DialogInterface dialog, int which) {
                             AppUtils.publishLatestChangelogSeen(HomeActivity.this);
                             startActivity(new Intent(HomeActivity.this, ChangelogActivity.class));
                         }
                     })
-                    .setNeutralButton(R.string.butn_never, new DialogInterface.OnClickListener()
-                    {
+                    .setNeutralButton(R.string.butn_never, new DialogInterface.OnClickListener() {
                         @Override
-                        public void onClick(DialogInterface dialog, int which)
-                        {
+                        public void onClick(DialogInterface dialog, int which) {
                             getDefaultPreferences().edit()
                                     .putBoolean("show_changelog_dialog", false)
                                     .apply();
                         }
                     })
-                    .setNegativeButton(R.string.butn_no, new DialogInterface.OnClickListener()
-                    {
+                    .setNegativeButton(R.string.butn_no, new DialogInterface.OnClickListener() {
                         @Override
-                        public void onClick(DialogInterface dialog, int which)
-                        {
+                        public void onClick(DialogInterface dialog, int which) {
                             AppUtils.publishLatestChangelogSeen(HomeActivity.this);
                             Toast.makeText(HomeActivity.this, R.string.mesg_versionUpdatedChangelogRejected, Toast.LENGTH_SHORT).show();
                         }
@@ -150,26 +129,40 @@ public class HomeActivity
             if (donateItem != null)
                 donateItem.setVisible(true);
         }
+
+//        toggleWebShare(true);
+    }
+
+    public void toggleWebShare(boolean forceStart) {
+        Intent intent = new Intent(this, CommunicationService.class)
+                .setAction(CommunicationService.ACTION_TOGGLE_WEBSHARE);
+
+        if (forceStart)
+            intent.putExtra(CommunicationService.EXTRA_TOGGLE_WEBSHARE_START_ALWAYS, true);
+
+        AppUtils.startForegroundService(this, intent);
+
+        int ipAddress = ((WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE)).getDhcpInfo().ipAddress;
+        String ipAddressStr = Formatter.formatIpAddress(ipAddress);
+
+        new WebShareDetailsDialog(this, TextUtils.makeWebShareLink(this, ipAddressStr)).show();
     }
 
     @Override
-    protected void onStart()
-    {
+    protected void onStart() {
         super.onStart();
         createHeaderView();
     }
 
     @Override
-    protected void onResume()
-    {
+    protected void onResume() {
         super.onResume();
         registerReceiver(mReceiver = new ActivityReceiver(), mFilter);
         requestTrustZoneStatus();
     }
 
     @Override
-    protected void onPause()
-    {
+    protected void onPause() {
         super.onPause();
 
         if (mReceiver != null)
@@ -179,8 +172,7 @@ public class HomeActivity
     }
 
     @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item)
-    {
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         mChosenMenuItemId = item.getItemId();
 
         if (mDrawerLayout != null)
@@ -190,8 +182,7 @@ public class HomeActivity
     }
 
     @Override
-    public void onBackPressed()
-    {
+    public void onBackPressed() {
         if (mHomeFragment.onBackPressed())
             return;
 
@@ -206,13 +197,11 @@ public class HomeActivity
     }
 
     @Override
-    public void onUserProfileUpdated()
-    {
+    public void onUserProfileUpdated() {
         createHeaderView();
     }
 
-    private void applyAwaitingDrawerAction()
-    {
+    private void applyAwaitingDrawerAction() {
         if (mChosenMenuItemId == 0) {
             // Do nothing
         } else if (R.id.menu_activity_main_manage_devices == mChosenMenuItemId) {
@@ -239,11 +228,9 @@ public class HomeActivity
             builder.setTitle(R.string.text_developmentSurvey);
             builder.setMessage(R.string.text_developmentSurveySummary);
             builder.setNegativeButton(R.string.genfw_uwg_later, null);
-            builder.setPositiveButton(R.string.butn_temp_doIt, new DialogInterface.OnClickListener()
-            {
+            builder.setPositiveButton(R.string.butn_temp_doIt, new DialogInterface.OnClickListener() {
                 @Override
-                public void onClick(DialogInterface dialog, int which)
-                {
+                public void onClick(DialogInterface dialog, int which) {
                     try {
                         startActivity(new Intent(Intent.ACTION_VIEW).setData(Uri.parse(
                                 "https://docs.google.com/forms/d/e/1FAIpQLScmwX923MACmHvZTpEyZMDCxRQjrd8b67u9p9MOjV1qFVp-_A/viewform?usp=sf_link"
@@ -264,8 +251,7 @@ public class HomeActivity
         mChosenMenuItemId = 0;
     }
 
-    private void createHeaderView()
-    {
+    private void createHeaderView() {
         View headerView = mNavigationView.getHeaderView(0);
         MenuItem surveyItem = mNavigationView.getMenu().findItem(R.id.menu_activity_main_dev_survey);
         Configuration configuration = getApplication().getResources().getConfiguration();
@@ -294,11 +280,9 @@ public class HomeActivity
             versionText.setText(localDevice.versionName);
             loadProfilePictureInto(localDevice.nickname, imageView);
 
-            editImageView.setOnClickListener(new View.OnClickListener()
-            {
+            editImageView.setOnClickListener(new View.OnClickListener() {
                 @Override
-                public void onClick(View v)
-                {
+                public void onClick(View v) {
                     startProfileEditor();
                 }
             });
@@ -306,34 +290,28 @@ public class HomeActivity
     }
 
     @Override
-    public PowerfulActionMode getPowerfulActionMode()
-    {
+    public PowerfulActionMode getPowerfulActionMode() {
         return mActionMode;
     }
 
-    private void highlightUpdater(String availableVersion)
-    {
+    private void highlightUpdater(String availableVersion) {
         MenuItem item = mNavigationView.getMenu().findItem(R.id.menu_activity_main_about);
         item.setTitle(R.string.text_newVersionAvailable);
     }
 
-    public void requestTrustZoneStatus()
-    {
+    public void requestTrustZoneStatus() {
         AppUtils.startForegroundService(this, new Intent(this, CommunicationService.class)
                 .setAction(CommunicationService.ACTION_REQUEST_TRUSTZONE_STATUS));
     }
 
-    public void toggleTrustZone()
-    {
+    public void toggleTrustZone() {
         AppUtils.startForegroundService(this, new Intent(this, CommunicationService.class)
                 .setAction(CommunicationService.ACTION_TOGGLE_SEAMLESS_MODE));
     }
 
-    private class ActivityReceiver extends BroadcastReceiver
-    {
+    private class ActivityReceiver extends BroadcastReceiver {
         @Override
-        public void onReceive(Context context, Intent intent)
-        {
+        public void onReceive(Context context, Intent intent) {
             if (CommunicationService.ACTION_TRUSTZONE_STATUS.equals(intent.getAction())
                     && mTrustZoneToggle != null)
                 mTrustZoneToggle.setTitle(intent.getBooleanExtra(
