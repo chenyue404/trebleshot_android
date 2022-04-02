@@ -6,8 +6,7 @@ package com.genonbeta.TrebleShot.config;
  * Date: 4/28/17 8:29 PM
  */
 
-public class Keyword
-{
+public class Keyword {
     public static final String
             REQUEST = "request",
             RESULT = "result",
@@ -60,15 +59,14 @@ public class Keyword
             NETWORK_ADDRESS_IP = "ipAdr",
             FLAG_TRANSFER_QR_CONNECTION = "flagTransferQRConnection";
 
-    public enum Flavor
-    {
+    public enum Flavor {
         unknown,
         fossReliant,
-        googlePlay
+        googlePlay,
+        chenyue,
     }
 
-    public static class Local
-    {
+    public static class Local {
         public static final String
                 NETWORK_INTERFACE_UNKNOWN = "unk0",
                 SETTINGS_VIEWING = "sorting_settings";

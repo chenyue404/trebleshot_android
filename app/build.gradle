@@ -69,6 +69,12 @@ android {
             dimension 'mode'
             signingConfig signingConfigs.gbDistribution
         }
+        chenyue {
+            dimension 'mode'
+            signingConfig signingConfigs.gbDistribution
+            applicationIdSuffix ".chenyue"
+            versionCode 1000 + android.defaultConfig.versionCode
+        }
     }
 }
 
