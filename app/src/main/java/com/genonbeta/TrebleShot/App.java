@@ -23,16 +23,13 @@ import com.genonbeta.android.updatewithgithub.GitHubUpdater;
  * date: 25.02.2018 01:23
  */
 
-public class App extends Application
-{
+public class App extends Application {
     public static final String TAG = App.class.getSimpleName();
     public static final String ACTION_REQUEST_PREFERENCES_SYNC = "com.genonbeta.intent.action.REQUEST_PREFERENCES_SYNC";
 
-    private BroadcastReceiver mReceiver = new BroadcastReceiver()
-    {
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
-        public void onReceive(Context context, Intent intent)
-        {
+        public void onReceive(Context context, Intent intent) {
             if (intent != null)
                 if (ACTION_REQUEST_PREFERENCES_SYNC.equals(intent.getAction())) {
                     SharedPreferences preferences = AppUtils.getDefaultPreferences(context).getWeakManager();
@@ -44,14 +41,14 @@ public class App extends Application
     };
 
     @Override
-    public void onCreate()
-    {
+    public void onCreate() {
         super.onCreate();
 
         initializeSettings();
         getApplicationContext().registerReceiver(mReceiver, new IntentFilter(ACTION_REQUEST_PREFERENCES_SYNC));
 
-        if (!Keyword.Flavor.googlePlay.equals(AppUtils.getBuildFlavor())
+        if (false
+                && !Keyword.Flavor.googlePlay.equals(AppUtils.getBuildFlavor())
                 && !UpdateUtils.hasNewVersion(getApplicationContext())
                 && (System.currentTimeMillis() - UpdateUtils.getLastTimeCheckedForUpdates(getApplicationContext())) >= AppConfig.DELAY_CHECK_FOR_UPDATES) {
             GitHubUpdater updater = UpdateUtils.getDefaultUpdater(getApplicationContext());
@@ -60,14 +57,12 @@ public class App extends Application
     }
 
     @Override
-    public void onTerminate()
-    {
+    public void onTerminate() {
         super.onTerminate();
         getApplicationContext().unregisterReceiver(mReceiver);
     }
 
-    private void initializeSettings()
-    {
+    private void initializeSettings() {
         SharedPreferences defaultPreferences = AppUtils.getDefaultLocalPreferences(this);
         NetworkDevice localDevice = AppUtils.getLocalDevice(getApplicationContext());
         boolean nsdDefined = defaultPreferences.contains("nsd_enabled");
